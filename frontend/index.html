@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SheSafe - Safety Alert Map</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Poppins", sans-serif;
+      background: #f8f9fa;
+      overflow: hidden;
+    }
+
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+
+    .info-box {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px 15px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+    }
+
+    .info-box h3 {
+      margin: 0;
+      font-size: 16px;
+      color: #e74c3c;
+    }
+
+    /* SOS Alert Overlay */
+    #sos-alert {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 0, 0, 0.85);
+      color: white;
+      font-size: 24px;
+      font-weight: bold;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      text-align: center;
+      animation: flash 0.6s infinite alternate;
+      transition: opacity 0.6s ease;
+    }
+
+    #cancel-btn {
+      background: white;
+      color: red;
+      border: none;
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 20px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    #cancel-btn:hover {
+      background: #eee;
+    }
+
+    #countdown-text {
+      margin-top: 10px;
+      font-size: 20px;
+    }
+
+    @keyframes flash {
+      from { opacity: 1; }
+      to { opacity: 0.7; }
+    }
+
+    /* Floating Report Button */
+    #report-btn {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      background-color: #e91e63;
+      color: white;
+      font-size: 18px;
+      padding: 14px 22px;
+      border: none;
+      border-radius: 50px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+      z-index: 1500;
+      transition: transform 0.2s ease, background 0.3s ease;
+    }
+
+    #report-btn:hover {
+      background-color: #c2185b;
+      transform: scale(1.05);
+    }
+
+    /* Popup Form */
+    #report-form {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 25px rgba(0, 0, 0, 0.3);
+      z-index: 3000;
+      width: 320px;
+      text-align: center;
+    }
+
+    #report-form input,
+    #report-form textarea {
+      width: 90%;
+      margin: 8px 0;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-family: "Poppins", sans-serif;
+    }
+
+    #report-form button {
+      margin-top: 10px;
+      background: #e91e63;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    #report-form button:hover {
+      background: #c2185b;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="info-box">
+    <h3>🟣 SheSafe - Women’s Safety Map</h3>
+    <p>🟢 Safe | 🔴 Red Zone | 📍 Report Issues</p>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- Floating Report Button -->
+  <button id="report-btn">📍 Report Issue</button>
+
+  <!-- Report Popup Form -->
+  <div id="report-form">
+    <h3>Report an Issue</h3>
+    <input type="text" id="userName" placeholder="Your Name" required />
+    <textarea id="description" placeholder="Describe the issue..." required></textarea>
+    <br />
+    <button id="submitReport">Submit Report</button>
+    <br />
+    <button id="closeForm" style="background:#aaa;">Cancel</button>
+  </div>
+
+  <!-- SOS Alert -->
+  <div id="sos-alert">
+    🚨 DANGER! You are in a Red Zone! 🚨
+    <br />
+    <p id="countdown-text">
+      Sending SOS in <span id="countdown">10</span> seconds...
+    </p>
+    <button id="cancel-btn">🛑 Cancel SOS Alert</button>
+  </div>
+
+  <audio
+    id="siren"
+    src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"
+    loop
+  ></audio>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map("map").setView([28.6139, 77.2090], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "@ OpenStreetMap",
+    }).addTo(map);
+
+    const sosBox = document.getElementById("sos-alert");
+    const siren = document.getElementById("siren");
+    const countdownDisplay = document.getElementById("countdown");
+    const countdownText = document.getElementById("countdown-text");
+    const cancelBtn = document.getElementById("cancel-btn");
+
+    let countdownTimer = null;
+    let sosState = "idle";
+    let sosCancelled = false;
+    let secondsLeft = 10;
+
+    function resetSOS() {
+      sosBox.style.display = "none";
+      siren.pause();
+      siren.currentTime = 0;
+      clearInterval(countdownTimer);
+      secondsLeft = 10;
+      countdownDisplay.textContent = 10;
+      countdownText.textContent = "Sending SOS in 10 seconds...";
+      sosState = "idle";
+    }
+
+    cancelBtn.addEventListener("click", () => {
+      sosState = "cancelled";
+      sosCancelled = true;
+      clearInterval(countdownTimer);
+      siren.pause();
+      siren.currentTime = 0;
+      sosBox.style.display = "none";
+      alert("✅ SOS alert cancelled.");
+    });
+
+    function triggerSOS() {
+      sosState = "sent";
+      clearInterval(countdownTimer);
+      siren.pause();
+
+      sosBox.innerHTML = `
+        <div style="text-align:center;">
+          <h2>📡 Sending SOS to Police & Emergency Contacts...</h2>
+          <p id="progress-text">Contacting authorities<span class="dots">...</span></p>
+        </div>
+      `;
+
+      let dotCount = 0;
+      const dotAnim = setInterval(() => {
+        dotCount = (dotCount + 1) % 4;
+        document.querySelector(".dots").textContent = ".".repeat(dotCount);
+      }, 400);
+
+      setTimeout(() => {
+        clearInterval(dotAnim);
+        sosBox.innerHTML = `
+          <div style="text-align:center;">
+            <h2>🚔 Police Notified Successfully!</h2>
+            <p>Help is on the way. Stay calm and safe.</p>
+          </div>
+        `;
+        setTimeout(() => {
+          sosBox.style.display = "none";
+          alert("🚨 SOS sent successfully!");
+          resetSOS();
+        }, 3000);
+      }, 4000);
+    }
+
+    async function loadReports() {
+      const res = await fetch("http://localhost:5000/api/reports");
+      const data = await res.json();
+      data.forEach((r) => {
+        L.marker([r.latitude, r.longitude])
+          .addTo(map)
+          .bindPopup(`<b>${r.userName}</b><br>${r.description}<br><small>${new Date(r.date).toLocaleString()}</small>`);
+      });
+    }
+
+    async function loadRedZones() {
+      const res = await fetch("http://localhost:5000/api/redzones");
+      const zones = await res.json();
+      zones.forEach((z) => {
+        L.circle([z.latitude, z.longitude], {
+          radius: 500,
+          color: "red",
+          fillColor: "#f03",
+          fillOpacity: 0.4,
+        })
+          .addTo(map)
+          .bindPopup(`<b>🔴 Red Zone</b><br>Reports: ${z.reportCount}<br><small>${new Date(z.createdAt).toLocaleString()}</small>`);
+      });
+    }
+
+    // Floating Report Button
+    const reportBtn = document.getElementById("report-btn");
+    const reportForm = document.getElementById("report-form");
+    const submitReport = document.getElementById("submitReport");
+    const closeForm = document.getElementById("closeForm");
+
+    let reportLocation = null;
+
+    reportBtn.addEventListener("click", () => {
+      alert("Click on the map to select the issue location.");
+      map.once("click", (e) => {
+        reportLocation = e.latlng;
+        reportForm.style.display = "block";
+      });
+    });
+
+    closeForm.addEventListener("click", () => {
+      reportForm.style.display = "none";
+    });
+
+    submitReport.addEventListener("click", async () => {
+      const userName = document.getElementById("userName").value.trim();
+      const description = document.getElementById("description").value.trim();
+
+      if (!userName || !description || !reportLocation) {
+        return alert("Please complete all fields and pick a location.");
+      }
+
+      const newReport = {
+        userName,
+        description,
+        latitude: reportLocation.lat,
+        longitude: reportLocation.lng,
+      };
+
+      await fetch("http://localhost:5000/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newReport),
+      });
+
+      alert("✅ Report added successfully!");
+      reportForm.style.display = "none";
+      location.reload();
+    });
+
+    // Simulate user location and safety checking
+    function simulateUserLocation() {
+      const userMarker = L.marker([28.6139, 77.2090], {
+        icon: L.icon({
+          iconUrl: "https://cdn-icons-png.flaticon.com/512/1077/1077012.png",
+          iconSize: [35, 35],
+        }),
+      }).addTo(map);
+
+      setInterval(async () => {
+        const lat = userMarker.getLatLng().lat;
+        const lon = userMarker.getLatLng().lng;
+
+        const res = await fetch(`http://localhost:5000/api/check-zone?latitude=${lat}&longitude=${lon}`);
+        const data = await res.json();
+
+        if (data.isRedZone && sosState === "idle" && !sosCancelled) {
+          sosState = "countdown";
+          sosBox.style.display = "flex";
+          siren.play();
+
+          secondsLeft = 10;
+          countdownDisplay.textContent = secondsLeft;
+
+          countdownTimer = setInterval(() => {
+            secondsLeft--;
+            countdownDisplay.textContent = secondsLeft;
+            if (secondsLeft <= 0 && sosState !== "cancelled") {
+              clearInterval(countdownTimer);
+              triggerSOS();
+            }
+          }, 1000);
+        } else if (!data.isRedZone) {
+          sosCancelled = false;
+          resetSOS();
+        }
+      }, 5000);
+    }
+
+    loadReports();
+    loadRedZones();
+    simulateUserLocation();
+  </script>
+</body>
+</html>
