@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>She Safe - Women Safety Awareness</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      function toggleTheme() {
+        document.documentElement.classList.toggle("dark");
+      }
+    </script>
+  </head>
+
+  <body class="m-0 p-0 bg-[#faf7f2] dark:bg-gray-900 transition duration-500">
+
+    <!-- NAVBAR -->
+    <nav
+      class="fixed top-4 left-8 z-20 w-[60%] bg-white/30 dark:bg-gray-800/30 
+      backdrop-blur-md rounded-full shadow-md px-6 py-3 flex justify-between items-center"
+    >
+      <div class="flex items-center gap-4 font-medium">
+        <a href="index.html" class="text-black dark:text-white hover:text-blue-600 transition">Home</a>
+        <a href="auth.html" class="text-black dark:text-white hover:text-blue-600 transition">Sign In</a>
+        <a href="auth.html?mode=signup" class="text-black dark:text-white hover:text-blue-600 transition">Sign Up</a>
+      </div>
+
+      <button
+        onclick="toggleTheme()"
+        class="text-black dark:text-white border border-black/20 dark:border-white/40 
+        px-3 py-1.5 rounded-full hover:bg-blue-600 hover:text-white transition"
+      >
+        Toggle Theme
+      </button>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section
+      class="relative flex items-center justify-start h-[100vh] w-full 
+      bg-center bg-contain bg-no-repeat transition-colors duration-500"
+      style="background-image: url('WhatsApp\ Image\ 2025-11-30\ at\ 23.18.23_418b4ae8.jpg');"
+    >
+
+      <!-- GRADIENT OVERLAY -->
+      <div
+        class="absolute inset-0 bg-gradient-to-r 
+          from-white/70 via-white/30 to-transparent
+          dark:from-gray-900/70 dark:via-gray-800/40 dark:to-transparent"
+      ></div>
+
+      <!-- CONTENT BLOCK (moved down & aligned under background SHE SAFE text) -->
+      <div class="relative z-10 px-10 sm:px-16 md:px-20 lg:px-28 max-w-xl translate-y-[200px] translate-x-16">
+        
+        <!-- Removed Visible 'SheSafe' Heading -->
+
+        <!-- Supporting Quote -->
+        <p class="text-gray-700 dark:text-gray-300 text-lg mb-4 font-medium">
+          Community-driven women safety map — report issues, see red zones, and stay safe.
+        </p>
+
+        <!-- Get Started Button -->
+        <button
+          onclick="window.location.href='auth.html'"
+          class="mt-2 bg-blue-600 text-white font-semibold px-6 py-3 rounded-xl translate-x-20
+          shadow-lg hover:bg-blue-700 transition"
+        >
+          Let's Get Started
+        </button>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="fixed bottom-6 left-6 text-sm text-gray-600 dark:text-gray-300">
+      Made with ❤️ for community safety
+    </footer>
+
+  </body>
+</html>
